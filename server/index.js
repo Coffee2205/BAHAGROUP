@@ -35,6 +35,38 @@ app.get('/api/meta/status', (_request, response) => {
   return verifyMetaAssets(adAccountId, pageId, accessToken, response);
 });
 
+app.get('/api/meta/page-posts', async (_request, response) => {
+  const pageId = process.env.META_PAGE_ID;
+  const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN;
+  if (!/^\d+$/.test(pageId || '') || !pageAccessToken || pageAccessToken.includes('điền_')) {
+    return response.status(503).json({ message: 'Chưa cấu hình Page Access Token để đọc bài viết.' });
+  }
+
+  try {
+    const url = new URL(`https://graph.facebook.com/${metaGraphVersion}/${pageId}/posts`);
+    url.searchParams.set('fields', 'id,message,created_time,permalink_url,full_picture');
+    url.searchParams.set('limit', '50');
+    url.searchParams.set('access_token', pageAccessToken);
+    const metaResponse = await fetch(url);
+    const result = await metaResponse.json();
+    if (!metaResponse.ok || result.error) {
+      return response.status(502).json({ message: result.error?.message || 'Meta không trả về danh sách bài viết.' });
+    }
+    return response.json({
+      ok: true,
+      posts: (result.data || []).map((post) => ({
+        id: post.id,
+        message: post.message || '',
+        createdTime: post.created_time,
+        permalinkUrl: post.permalink_url || '',
+        imageUrl: post.full_picture || ''
+      }))
+    });
+  } catch {
+    return response.status(502).json({ message: 'Không thể kết nối Meta để tải bài viết.' });
+  }
+});
+
 app.post('/api/meta/draft', async (request, response) => {
   const { campaign } = request.body || {};
   const adAccountId = process.env.META_AD_ACCOUNT_ID;
