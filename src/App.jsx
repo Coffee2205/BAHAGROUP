@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Bell, Check, CheckCircle2, CircleHelp, Eye,
   FileText, ImagePlus, MapPin, Megaphone, MessageCircle, Save, ShieldCheck,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'baha-campaigns';
+const DRAFT_KEY = 'baha-campaign-draft';
 const steps = [
   ['Thông tin dịch vụ', FileText], ['Mục tiêu', Target], ['Khách hàng', Users],
   ['Ngân sách', Wallet], ['Nội dung', Sparkles], ['Xem trước', Eye],
@@ -23,22 +24,36 @@ const initialCampaign = {
 function readCampaigns() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
 }
+function readDraft() {
+  try { return { ...initialCampaign, ...JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') }; } catch { return initialCampaign; }
+}
 function money(value) { return `${Number(value || 0).toLocaleString('vi-VN')} VNĐ`; }
+function campaignId() {
+  return globalThis.crypto?.randomUUID?.() || `campaign-${Date.now()}`;
+}
 
 export default function App() {
   const [step, setStep] = useState(1);
-  const [campaign, setCampaign] = useState(initialCampaign);
+  const [campaign, setCampaign] = useState(readDraft);
   const [campaigns, setCampaigns] = useState(readCampaigns);
   const [notice, setNotice] = useState(null);
   const [sending, setSending] = useState(false);
+  const [savedCampaign, setSavedCampaign] = useState(null);
 
   const total = useMemo(() => Number(campaign.budget || 0) * Number(campaign.duration || 0), [campaign]);
   const update = (key, value) => setCampaign((current) => ({ ...current, [key]: value }));
-  const validate = () => {
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(campaign));
+  }, [campaign]);
+  const validate = (allSteps = false) => {
     if (step === 1 && (!campaign.name.trim() || !campaign.description.trim())) return 'Vui lòng nhập tên và mô tả dịch vụ.';
     if (step === 3 && !campaign.location.trim()) return 'Vui lòng nhập khu vực muốn tiếp cận.';
     if (step === 4 && (campaign.budget < 10000 || campaign.duration < 1)) return 'Ngân sách tối thiểu là 10.000 VNĐ/ngày và thời gian ít nhất 1 ngày.';
     if (step === 5 && (!campaign.title.trim() || !campaign.content.trim())) return 'Vui lòng hoàn thiện tiêu đề và nội dung quảng cáo.';
+    if (allSteps && (!campaign.name.trim() || !campaign.description.trim() || !campaign.location.trim() ||
+      campaign.budget < 10000 || campaign.duration < 1 || !campaign.title.trim() || !campaign.content.trim())) {
+      return 'Vui lòng hoàn thiện các thông tin bắt buộc trước khi lưu chiến dịch.';
+    }
     return null;
   };
   const next = () => {
@@ -48,17 +63,21 @@ export default function App() {
   };
   const previous = () => { setNotice(null); setStep((value) => Math.max(1, value - 1)); };
   const saveCampaign = async () => {
-    const error = validate();
+    const error = validate(true);
     if (error) return setNotice({ type: 'error', text: error });
-    const saved = { ...campaign, id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: 'Chờ phê duyệt' };
-    const nextCampaigns = [saved, ...campaigns];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextCampaigns));
-    setCampaigns(nextCampaigns);
+    const saved = savedCampaign || { ...campaign, id: campaignId(), createdAt: new Date().toISOString(), status: 'Chờ phê duyệt' };
+    if (!savedCampaign) {
+      const nextCampaigns = [saved, ...campaigns];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextCampaigns));
+      setCampaigns(nextCampaigns);
+      setSavedCampaign(saved);
+    }
     setSending(true); setNotice({ type: 'success', text: 'Đã lưu chiến dịch. Đang gửi thông báo Telegram thật...' });
     try {
       const response = await fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaign: saved }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || 'Gửi Telegram thất bại.');
+      localStorage.removeItem(DRAFT_KEY);
       setNotice({ type: 'success', text: 'Đã lưu chiến dịch và gửi thông báo Telegram thành công.' });
     } catch (error) {
       setNotice({ type: 'warning', text: `Chiến dịch đã được lưu, nhưng ${error.message}` });
@@ -75,7 +94,7 @@ export default function App() {
       <nav className="stepper" aria-label="Các bước thiết lập chiến dịch">{steps.map(([label, Icon], index) => <button type="button" key={label} className={step === index + 1 ? 'step active' : step > index + 1 ? 'step completed' : 'step'} aria-label={`Bước ${index + 1}: ${label}`} aria-current={step === index + 1 ? 'step' : undefined} onClick={() => index + 1 < step && setStep(index + 1)}><span className="step-icon">{step > index + 1 ? <Check size={16} /> : <Icon size={16} />}</span><span className="step-label">{index + 1}. {label}</span></button>)}</nav>
       {notice && <div className={`notice ${notice.type}`} role="status" aria-live="polite"><CircleHelp size={18} />{notice.text}</div>}
       <div className="content">{renderStep(step, campaign, update, total, campaigns)}</div>
-      <footer className="wizard-footer"><button className="button secondary" onClick={previous} disabled={step === 1}><ArrowLeft size={18} /> Quay lại</button><span className="step-count">Bước {step} / 8</span>{step < 7 && <button className="button primary" onClick={next}>Tiếp tục <ArrowRight size={18} /></button>}{step === 7 && <button className="button primary" onClick={() => { const error = validate(); if (error) setNotice({ type: 'error', text: error }); else setStep(8); }}>Xác nhận để lưu <Check size={18} /></button>}{step === 8 && <button className="button primary" onClick={saveCampaign} disabled={sending}><Bell size={18} /> {sending ? 'Đang gửi...' : 'Lưu và gửi Telegram'}</button>}</footer>
+      <footer className="wizard-footer"><button className="button secondary" onClick={previous} disabled={step === 1}><ArrowLeft size={18} /> Quay lại</button><span className="step-count">Bước {step} / 8</span>{step < 7 && <button className="button primary" onClick={next}>Tiếp tục <ArrowRight size={18} /></button>}{step === 7 && <button className="button primary" onClick={() => { const error = validate(true); if (error) setNotice({ type: 'error', text: error }); else setStep(8); }}>Xác nhận để lưu <Check size={18} /></button>}{step === 8 && <button className="button primary" onClick={saveCampaign} disabled={sending}><Bell size={18} /> {sending ? 'Đang gửi...' : savedCampaign ? 'Gửi lại Telegram' : 'Lưu và gửi Telegram'}</button>}</footer>
     </section>
     <p className="footer-note"><ShieldCheck size={15} /> An toàn tài chính: Chưa có quảng cáo nào được chạy và chưa phát sinh chi phí.</p>
   </main>;
