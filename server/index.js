@@ -55,6 +55,7 @@ app.post('/api/meta/draft', async (request, response) => {
       objective: campaign.objective === 'Tăng số người ghé thăm trang' ? 'OUTCOME_TRAFFIC' : 'OUTCOME_LEADS',
       status: 'PAUSED',
       special_ad_categories: '[]',
+      is_adset_budget_sharing_enabled: 'false',
       access_token: accessToken
     }, accessToken, `${idempotencyKey}-campaign`);
     const adSetResult = await metaPost(`/${adAccountId}/adsets`, {
