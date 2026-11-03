@@ -12,6 +12,28 @@ app.get('/api/health', (_request, response) => {
   response.json({ ok: true, service: 'baha-ad-builder-api' });
 });
 
+app.get('/api/meta/status', (_request, response) => {
+  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const pageId = process.env.META_PAGE_ID;
+  const accessToken = process.env.META_ACCESS_TOKEN;
+  const missing = [];
+
+  if (!/^act_\d+$/.test(adAccountId || '')) missing.push('META_AD_ACCOUNT_ID');
+  if (!/^\d+$/.test(pageId || '')) missing.push('META_PAGE_ID');
+  if (!accessToken || accessToken.includes('điền_')) missing.push('META_ACCESS_TOKEN');
+
+  if (missing.length > 0) {
+    return response.status(503).json({
+      ok: false,
+      ready: false,
+      missing,
+      message: `Chưa đủ cấu hình Meta: ${missing.join(', ')}.`
+    });
+  }
+
+  return response.json({ ok: true, ready: true, adAccountId, pageId });
+});
+
 app.get('/api/telegram/status', async (_request, response) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
