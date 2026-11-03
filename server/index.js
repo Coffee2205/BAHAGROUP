@@ -64,6 +64,7 @@ app.post('/api/meta/draft', async (request, response) => {
       daily_budget: String(Math.max(10000, Math.round(Number(campaign.budget)))),
       billing_event: 'IMPRESSIONS',
       optimization_goal: campaign.objective === 'Tăng số người ghé thăm trang' ? 'LINK_CLICKS' : 'LEAD_GENERATION',
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       destination_type: 'WEBSITE',
       targeting: JSON.stringify({
         age_min: Number(String(campaign.ageRange || '25').match(/\d+/)?.[0] || 18),
