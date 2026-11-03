@@ -4,7 +4,7 @@ import express from 'express';
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
-const metaGraphVersion = process.env.META_GRAPH_API_VERSION || 'v23.0';
+const metaGraphVersion = process.env.META_GRAPH_API_VERSION || 'v26.0';
 
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json({ limit: '100kb' }));
@@ -52,7 +52,7 @@ app.post('/api/meta/draft', async (request, response) => {
   try {
     const campaignResult = await metaPost(`/${adAccountId}/campaigns`, {
       name: `BAHA - ${campaign.name}`,
-      objective: campaign.objective === 'Tăng số người ghé thăm trang' ? 'LINK_CLICKS' : 'OUTCOME_LEADS',
+      objective: campaign.objective === 'Tăng số người ghé thăm trang' ? 'OUTCOME_TRAFFIC' : 'OUTCOME_LEADS',
       status: 'PAUSED',
       special_ad_categories: '[]',
       access_token: accessToken
@@ -63,6 +63,7 @@ app.post('/api/meta/draft', async (request, response) => {
       daily_budget: String(Math.max(10000, Math.round(Number(campaign.budget)))),
       billing_event: 'IMPRESSIONS',
       optimization_goal: campaign.objective === 'Tăng số người ghé thăm trang' ? 'LINK_CLICKS' : 'LEAD_GENERATION',
+      destination_type: 'WEBSITE',
       targeting: JSON.stringify({
         age_min: Number(String(campaign.ageRange || '25').match(/\d+/)?.[0] || 18),
         age_max: Number(String(campaign.ageRange || '55').match(/\d+/g)?.[1] || 65),
@@ -101,13 +102,16 @@ app.post('/api/meta/draft', async (request, response) => {
       metaAdId: adResult.id,
       message: 'Đã tạo đầy đủ bản nháp Meta ở trạng thái tạm dừng.'
     });
-  } catch {
-    return response.status(502).json({ message: 'Meta không tạo được đầy đủ bản nháp. Hãy kiểm tra Ads Manager trước khi thử lại để tránh trùng dữ liệu.' });
+  } catch (error) {
+    return response.status(502).json({ message: error.message || 'Meta không tạo được đầy đủ bản nháp. Hãy kiểm tra Ads Manager trước khi thử lại để tránh trùng dữ liệu.' });
   }
 });
 
 async function metaPost(path, fields, accessToken, idempotencyKey) {
-  const body = new URLSearchParams(fields);
+  const body = new URLSearchParams();
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value !== undefined) body.set(key, value);
+  });
   const metaResponse = await fetch(`https://graph.facebook.com/${metaGraphVersion}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Client-Idempotent-Key': idempotencyKey },
@@ -115,7 +119,8 @@ async function metaPost(path, fields, accessToken, idempotencyKey) {
   });
   const result = await metaResponse.json();
   if (!metaResponse.ok || result.error) {
-    throw new Error(result.error?.message || 'Meta API request failed.');
+    const detail = result.error?.error_user_msg || result.error?.message || 'Meta API request failed.';
+    throw new Error(`${path.split('/').pop()} thất bại: ${detail}`);
   }
   return result;
 }
