@@ -38,12 +38,9 @@ app.get('/api/meta/status', (_request, response) => {
 app.post('/api/meta/draft', async (request, response) => {
   const { campaign } = request.body || {};
   const adAccountId = process.env.META_AD_ACCOUNT_ID;
-  const pageId = process.env.META_PAGE_ID;
   const accessToken = process.env.META_ACCESS_TOKEN;
-  const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN;
 
-  if (!/^act_\d+$/.test(adAccountId || '') || !/^\d+$/.test(pageId || '') ||
-    !accessToken || accessToken.includes('điền_') || !pageAccessToken || pageAccessToken.includes('điền_')) {
+  if (!/^act_\d+$/.test(adAccountId || '') || !accessToken || accessToken.includes('điền_')) {
     return response.status(503).json({ message: 'Chưa đủ cấu hình Meta để tạo bản nháp.' });
   }
   if (!campaign?.name || !campaign?.budget || Number(campaign.budget) < 30000 || !campaign?.duration || !campaign?.destinationUrl) {
@@ -77,38 +74,15 @@ app.post('/api/meta/draft', async (request, response) => {
       status: 'PAUSED',
       access_token: accessToken
     }, `${idempotencyKey}-adset`);
-    const creativeResult = await metaPost(`/${adAccountId}/adcreatives`, {
-      name: `BAHA - ${campaign.name} - Nội dung`,
-      object_story_spec: JSON.stringify({
-        page_id: pageId,
-        link_data: {
-          link: campaign.destinationUrl,
-          message: campaign.content,
-          name: campaign.title,
-          description: campaign.description,
-          call_to_action: { type: 'LEARN_MORE', value: { link: campaign.destinationUrl } }
-        }
-      }),
-      access_token: pageAccessToken
-    }, `${idempotencyKey}-creative`);
-    const adResult = await metaPost(`/${adAccountId}/ads`, {
-      name: `BAHA - ${campaign.name} - Quảng cáo`,
-      adset_id: adSetResult.id,
-      creative: JSON.stringify({ creative_id: creativeResult.id }),
-      status: 'PAUSED',
-      access_token: accessToken
-    }, `${idempotencyKey}-ad`);
     return response.json({
       ok: true,
       status: 'PAUSED',
       metaCampaignId: campaignResult.id,
       metaAdSetId: adSetResult.id,
-      metaCreativeId: creativeResult.id,
-      metaAdId: adResult.id,
-      message: 'Đã tạo đầy đủ bản nháp Meta ở trạng thái tạm dừng.'
+      message: 'Đã tạo Campaign và Ad Set nháp trên Meta ở trạng thái tạm dừng.'
     });
   } catch (error) {
-    return response.status(502).json({ message: error.message || 'Meta không tạo được đầy đủ bản nháp. Hãy kiểm tra Ads Manager trước khi thử lại để tránh trùng dữ liệu.' });
+    return response.status(502).json({ message: error.message || 'Meta không tạo được Campaign và Ad Set nháp. Hãy kiểm tra Ads Manager trước khi thử lại để tránh trùng dữ liệu.' });
   }
 });
 
