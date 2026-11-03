@@ -12,6 +12,34 @@ app.get('/api/health', (_request, response) => {
   response.json({ ok: true, service: 'baha-ad-builder-api' });
 });
 
+app.get('/api/telegram/status', async (_request, response) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId || token.includes('điền_') || chatId.includes('điền_')) {
+    return response.status(503).json({ ok: false, message: 'Chưa cấu hình TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.' });
+  }
+
+  try {
+    const botResponse = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const botResult = await botResponse.json();
+    if (!botResponse.ok || !botResult.ok) {
+      return response.status(502).json({ ok: false, message: 'TELEGRAM_BOT_TOKEN không hợp lệ.' });
+    }
+
+    const chatResponse = await fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${encodeURIComponent(chatId)}`);
+    const chatResult = await chatResponse.json();
+    if (!chatResponse.ok || !chatResult.ok) {
+      return response.status(502).json({
+        ok: false,
+        message: chatResult.description || 'Không tìm thấy chat. Hãy kiểm tra Chat ID và thêm bot vào nhóm.'
+      });
+    }
+    return response.json({ ok: true, botUsername: botResult.result.username, chatType: chatResult.result.type });
+  } catch {
+    return response.status(502).json({ ok: false, message: 'Không thể kết nối Telegram để kiểm tra cấu hình.' });
+  }
+});
+
 app.post('/api/telegram', async (request, response) => {
   const { campaign } = request.body || {};
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -48,7 +76,9 @@ app.post('/api/telegram', async (request, response) => {
     });
     const result = await telegramResponse.json();
     if (!telegramResponse.ok || !result.ok) {
-      return response.status(502).json({ message: 'Telegram không nhận được thông báo. Vui lòng thử lại.' });
+      return response.status(502).json({
+        message: result.description || 'Telegram không nhận được thông báo. Vui lòng thử lại.'
+      });
     }
     return response.json({ ok: true });
   } catch {

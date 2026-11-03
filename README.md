@@ -17,6 +17,14 @@ Mở `http://localhost:5173`. API kiểm tra tại `http://localhost:3001/api/he
 
 Nếu chưa cấu hình Telegram, ứng dụng vẫn lưu chiến dịch vào `localStorage` và hiển thị lỗi cấu hình rõ ràng; không có token nào được gửi xuống trình duyệt.
 
+### Xử lý lỗi Telegram
+
+1. Tạo bot bằng `@BotFather`, sao chép token vào `TELEGRAM_BOT_TOKEN`.
+2. Mở cuộc trò chuyện với bot và bấm **Start**. Nếu gửi vào nhóm, hãy thêm bot vào nhóm.
+3. Điền đúng `TELEGRAM_CHAT_ID` (nhóm thường là số âm, ví dụ bắt đầu bằng `-100`).
+4. Khởi động lại backend sau khi sửa `.env`.
+5. Kiểm tra cấu hình tại `http://localhost:3001/api/telegram/status`. Endpoint không hiển thị token và sẽ báo rõ lỗi Chat ID/quyền truy cập.
+
 ## Luồng an toàn
 
 1. Người dùng hoàn thành 8 bước và kiểm tra cấu hình.
