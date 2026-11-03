@@ -35,6 +35,43 @@ app.get('/api/meta/status', (_request, response) => {
   return verifyMetaAssets(adAccountId, pageId, accessToken, response);
 });
 
+app.post('/api/meta/draft', async (request, response) => {
+  const { campaign } = request.body || {};
+  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const accessToken = process.env.META_ACCESS_TOKEN;
+
+  if (!/^act_\d+$/.test(adAccountId || '') || !accessToken || accessToken.includes('điền_')) {
+    return response.status(503).json({ message: 'Chưa đủ cấu hình Meta để tạo bản nháp.' });
+  }
+  if (!campaign?.name || !campaign?.budget || !campaign?.duration || !campaign?.destinationUrl) {
+    return response.status(400).json({ message: 'Bản nháp cần tên, ngân sách, thời gian và website đích.' });
+  }
+
+  const params = new URLSearchParams({
+    name: `BAHA - ${campaign.name}`,
+    objective: campaign.objective === 'Tăng số người ghé thăm trang' ? 'LINK_CLICKS' : 'OUTCOME_LEADS',
+    status: 'PAUSED',
+    special_ad_categories: '[]',
+    access_token: accessToken
+  });
+  const idempotencyKey = campaign.id || `${campaign.name}-${campaign.createdAt || Date.now()}`;
+
+  try {
+    const metaResponse = await fetch(`https://graph.facebook.com/${metaGraphVersion}/${adAccountId}/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Client-Idempotent-Key': idempotencyKey },
+      body: params
+    });
+    const result = await metaResponse.json();
+    if (!metaResponse.ok || result.error) {
+      return response.status(502).json({ message: result.error?.message || 'Meta không tạo được bản nháp chiến dịch.' });
+    }
+    return response.json({ ok: true, status: 'PAUSED', metaCampaignId: result.id, message: 'Đã tạo chiến dịch nháp trên Meta ở trạng thái tạm dừng.' });
+  } catch {
+    return response.status(502).json({ message: 'Không thể kết nối Meta lúc này. Chưa xác định được bản nháp đã tạo hay chưa.' });
+  }
+});
+
 async function verifyMetaAssets(adAccountId, pageId, accessToken, response) {
   const assets = [
     ['Ad Account', adAccountId, 'id,name,account_status'],

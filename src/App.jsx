@@ -42,6 +42,7 @@ export default function App() {
   const [savedCampaign, setSavedCampaign] = useState(null);
   const [checkingTelegram, setCheckingTelegram] = useState(false);
   const [checkingMeta, setCheckingMeta] = useState(false);
+  const [creatingMetaDraft, setCreatingMetaDraft] = useState(false);
 
   const total = useMemo(() => Number(campaign.budget || 0) * Number(campaign.duration || 0), [campaign]);
   const update = (key, value) => setCampaign((current) => ({ ...current, [key]: value }));
@@ -114,6 +115,36 @@ export default function App() {
       setCheckingMeta(false);
     }
   };
+  const createMetaDraft = async () => {
+    const error = validate(true);
+    if (error) return setNotice({ type: 'error', text: error });
+    const localDraft = savedCampaign || { ...campaign, platform: 'Facebook Ads', mode: 'Bản nháp nội bộ', id: campaignId(), createdAt: new Date().toISOString(), status: 'Bản nháp' };
+    setCreatingMetaDraft(true);
+    try {
+      const response = await fetch('/api/meta/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign: localDraft })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể tạo bản nháp trên Meta.');
+      const updated = { ...localDraft, status: 'Bản nháp trên Meta', metaCampaignId: result.metaCampaignId };
+      const nextCampaigns = campaigns.map((item) => item.id === localDraft.id ? updated : item);
+      if (!savedCampaign) {
+        nextCampaigns.unshift(updated);
+        setSavedCampaign(updated);
+      } else {
+        setSavedCampaign(updated);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextCampaigns));
+      setCampaigns(nextCampaigns);
+      setNotice({ type: 'success', text: `Đã tạo bản nháp trên Meta (ID: ${result.metaCampaignId}). Chiến dịch đang PAUSED.` });
+    } catch (error) {
+      setNotice({ type: 'error', text: error.message });
+    } finally {
+      setCreatingMetaDraft(false);
+    }
+  };
 
   return <main className="app-shell">
     <header className="topbar">
@@ -124,7 +155,7 @@ export default function App() {
     <section className="wizard-card">
       <nav className="stepper" aria-label="Các bước thiết lập chiến dịch">{steps.map(([label, Icon], index) => <button type="button" key={label} className={step === index + 1 ? 'step active' : step > index + 1 ? 'step completed' : 'step'} aria-label={`Bước ${index + 1}: ${label}`} aria-current={step === index + 1 ? 'step' : undefined} onClick={() => index + 1 < step && setStep(index + 1)}><span className="step-icon">{step > index + 1 ? <Check size={16} /> : <Icon size={16} />}</span><span className="step-label">{index + 1}. {label}</span></button>)}</nav>
       {notice && <div className={`notice ${notice.type}`} role="status" aria-live="polite"><CircleHelp size={18} />{notice.text}</div>}
-      <div className="content">{renderStep(step, campaign, update, total, campaigns, checkTelegram, checkingTelegram, checkMeta, checkingMeta)}</div>
+      <div className="content">{renderStep(step, campaign, update, total, campaigns, checkTelegram, checkingTelegram, checkMeta, checkingMeta, createMetaDraft, creatingMetaDraft)}</div>
       <footer className="wizard-footer"><button className="button secondary" onClick={previous} disabled={step === 1}><ArrowLeft size={18} /> Quay lại</button><span className="step-count">Bước {step} / 8</span>{step < 7 && <button className="button primary" onClick={next}>Tiếp tục <ArrowRight size={18} /></button>}{step === 7 && <button className="button primary" onClick={() => { const error = validate(true); if (error) setNotice({ type: 'error', text: error }); else setStep(8); }}>Xác nhận để lưu <Check size={18} /></button>}{step === 8 && <button className="button primary" onClick={saveCampaign} disabled={sending}><Bell size={18} /> {sending ? 'Đang gửi...' : savedCampaign ? 'Gửi lại Telegram' : 'Lưu bản nháp'}</button>}</footer>
     </section>
     <p className="footer-note"><ShieldCheck size={15} /> An toàn tài chính: Chưa có quảng cáo nào được chạy và chưa phát sinh chi phí.</p>
@@ -132,7 +163,7 @@ export default function App() {
 }
 
 function Field({ label, hint, children }) { return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>; }
-function renderStep(step, c, update, total, campaigns, checkTelegram, checkingTelegram, checkMeta, checkingMeta) {
+function renderStep(step, c, update, total, campaigns, checkTelegram, checkingTelegram, checkMeta, checkingMeta, createMetaDraft, creatingMetaDraft) {
   if (step === 1) return <><StepHeading icon={FileText} title="Thông tin dịch vụ" subtitle="Hãy cho chúng tôi biết bạn muốn giới thiệu sản phẩm hoặc dịch vụ nào." /><div className="form-grid"><Field label="Tên sản phẩm / dịch vụ *"><input value={c.name} onChange={(e) => update('name', e.target.value)} placeholder="Ví dụ: Chăm sóc sắc đẹp" /></Field><Field label="Mô tả ngắn *" hint="Mô tả rõ ràng giúp khách hàng hiểu bạn cung cấp gì."><textarea value={c.description} onChange={(e) => update('description', e.target.value)} rows="4" placeholder="Viết một vài câu đơn giản..." /></Field></div><div className="upload-box"><ImagePlus size={24} /><div><b>Thêm hình ảnh hoặc video (không bắt buộc)</b><small>Trong bản mô phỏng, bạn có thể bổ sung sau.</small></div><button type="button" className="button secondary" disabled title="Tính năng sẽ được bổ sung sau">Sẽ bổ sung sau</button></div></>;
   if (step === 2) return <><StepHeading icon={Target} title="Bạn muốn đạt được điều gì?" subtitle="Chọn kết quả quan trọng nhất với cửa hàng của bạn." /><div className="choice-grid">{['Có thêm khách hàng liên hệ tư vấn', 'Tăng số người ghé thăm trang', 'Tăng số đơn hàng'].map((value, i) => <button className={c.objective === value ? 'choice selected' : 'choice'} key={value} onClick={() => update('objective', value)}><span className="choice-number">0{i + 1}</span><strong>{value}</strong><small>{['Khách hàng nhắn tin hoặc gọi cho bạn.', 'Nhiều người biết đến dịch vụ hơn.', 'Khuyến khích khách hàng mua hàng.'][i]}</small>{c.objective === value && <CheckCircle2 className="choice-check" size={20} />}</button>)}</div></>;
   if (step === 3) return <><StepHeading icon={Users} title="Bạn muốn tiếp cận ai?" subtitle="Chọn khu vực và mô tả nhóm khách hàng phù hợp nhất." /><div className="form-grid two"><Field label="Khu vực *"><div className="input-icon"><MapPin size={18} /><input value={c.location} onChange={(e) => update('location', e.target.value)} /></div></Field><Field label="Độ tuổi tham khảo"><select value={c.ageRange} onChange={(e) => update('ageRange', e.target.value)}><option>18 - 30 tuổi</option><option>25 - 55 tuổi</option><option>35 - 65 tuổi</option><option>Mọi độ tuổi</option></select></Field></div><Field label="Nhóm khách hàng bạn muốn tìm"><input value={c.audience} onChange={(e) => update('audience', e.target.value)} /></Field><div className="tip"><Sparkles size={18} /><span><b>Gợi ý của BAHA:</b> Với dịch vụ làm đẹp tại TP.HCM, nhóm phụ nữ 25 - 55 tuổi thường là lựa chọn phù hợp để bắt đầu.</span></div></>;
@@ -140,7 +171,7 @@ function renderStep(step, c, update, total, campaigns, checkTelegram, checkingTe
   if (step === 5) return <><StepHeading icon={Sparkles} title="Hoàn thiện nội dung" subtitle="Chúng tôi đã gợi ý nội dung. Bạn có thể sửa lại cho đúng với cách nói của mình." /><Field label="Tiêu đề quảng cáo *"><input value={c.title} onChange={(e) => update('title', e.target.value)} /></Field><Field label="Nội dung quảng cáo *"><textarea value={c.content} onChange={(e) => update('content', e.target.value)} rows="5" /></Field><Field label="Nút kêu gọi hành động"><select value={c.cta} onChange={(e) => update('cta', e.target.value)}><option>Nhắn tin tư vấn</option><option>Đặt lịch ngay</option><option>Tìm hiểu thêm</option></select></Field>{c.objective === 'Tăng số người ghé thăm trang' && <Field label="Website đích *" hint="Đường dẫn này sẽ được lưu trong bản nháp để bạn duyệt trước."><input type="url" value={c.destinationUrl} onChange={(e) => update('destinationUrl', e.target.value)} placeholder="https://example.com" /></Field>}</>;
   if (step === 6) return <><StepHeading icon={Eye} title="Xem trước quảng cáo" subtitle="Đây là bản nháp Facebook Ads. Chưa có quảng cáo nào được gửi lên Meta hoặc bật chạy." /><div className="preview-wrap"><div className="preview-card"><div className="preview-head"><div className="avatar">F</div><div><b>{c.name || 'Tên cửa hàng'}</b><small>Quảng cáo Facebook · Bản nháp</small></div><span>•••</span></div><div className="preview-image"><Sparkles size={38} /><b>Hình ảnh dịch vụ của bạn</b><small>Hình ảnh thật có thể thêm sau</small></div><div className="preview-text"><h3>{c.title}</h3><p>{c.content}</p></div><div className="preview-cta"><span>{c.destinationUrl || c.location}</span><button>{c.cta}</button></div></div><div className="preview-side"><div className="tag"><ShieldCheck size={18} /> Facebook Ads · Bản nháp</div><p>Phiên bản này chỉ lưu cấu hình trong ứng dụng để bạn duyệt. Chưa kết nối Meta API, chưa kích hoạt quảng cáo và không phát sinh chi phí.</p></div></div></>;
   if (step === 7) return <><StepHeading icon={ShieldCheck} title="Kiểm tra trước khi lưu" subtitle="Hãy xem lại lần cuối. Bản nháp sẽ được lưu trong ứng dụng để bạn duyệt." /><div className="status-track"><StatusBadge label="Bản nháp" active /><span>→</span><StatusBadge label="Chờ bạn duyệt" active /><span>→</span><StatusBadge label="Chưa gửi Meta" /></div><div className="review-grid">{[['Dịch vụ', c.name], ['Mục tiêu', c.objective], ['Khu vực', `${c.location} · ${c.ageRange}`], ['Ngân sách', `${money(c.budget)} × ${c.duration} ngày`], ['Website đích', c.destinationUrl || 'Chưa nhập'], ['Tổng dự kiến', money(total)], ['Nút hành động', c.cta]].map(([label, value]) => <div className="review-item" key={label}><small>{label}</small><b>{value}</b></div>)}</div><div className="safety-alert"><ShieldCheck size={22} /><div><b>Cam kết an toàn</b><p>BAHA chỉ lưu bản nháp trong ứng dụng. Chưa gọi Meta API, chưa kích hoạt quảng cáo và không phát sinh chi phí.</p></div></div></>;
-  return <><StepHeading icon={Bell} title="Quản lý bản nháp" subtitle="Bản nháp đã lưu sẽ nằm ở đây. Bạn có thể kiểm tra kết nối trước khi gửi lên Meta." /><div className="telegram-box"><MessageCircle size={25} /><div><b>Telegram · Gửi thật</b><p>Thông báo chỉ được gửi sau khi bạn bấm nút lưu. Token được bảo vệ ở máy chủ.</p></div><button type="button" className="button secondary" onClick={checkTelegram} disabled={checkingTelegram}>{checkingTelegram ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}</button></div><div className="telegram-box"><ShieldCheck size={25} /><div><b>Meta · Sẵn sàng tạo bản nháp</b><p>Kiểm tra Ad Account, Page và Access Token. Không bật quảng cáo.</p></div><button type="button" className="button secondary" onClick={checkMeta} disabled={checkingMeta}>{checkingMeta ? 'Đang kiểm tra...' : 'Kiểm tra Meta'}</button></div><div className="status-guide"><b>Các trạng thái an toàn</b><div><StatusBadge label="Bản nháp" /><StatusBadge label="Chờ bạn duyệt" /><StatusBadge label="Chưa gửi Meta" /></div><small>Ứng dụng chưa tạo đối tượng nào trên Meta và chưa bật trạng thái chạy thực tế.</small></div>{campaigns.length === 0 ? <div className="empty"><FileText size={30} /><p>Chưa có bản nháp nào được lưu.</p></div> : <div className="campaign-list">{campaigns.slice(0, 5).map((item) => <div className="campaign-row" key={item.id}><div><b>{item.name}</b><small>{item.location} · {money(item.budget)}/ngày · {item.duration} ngày</small></div><span className="status">{item.status}</span></div>)}</div>}</>;
+  return <><StepHeading icon={Bell} title="Quản lý bản nháp" subtitle="Bản nháp đã lưu sẽ nằm ở đây. Bạn có thể kiểm tra và tạo chiến dịch PAUSED trên Meta." /><div className="telegram-box"><MessageCircle size={25} /><div><b>Telegram · Gửi thật</b><p>Thông báo chỉ được gửi sau khi bạn bấm nút lưu. Token được bảo vệ ở máy chủ.</p></div><button type="button" className="button secondary" onClick={checkTelegram} disabled={checkingTelegram}>{checkingTelegram ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}</button></div><div className="telegram-box"><ShieldCheck size={25} /><div><b>Meta · Tạo bản nháp PAUSED</b><p>Thao tác này tạo campaign trên Meta ở trạng thái tạm dừng, chưa phân phối và chưa phát sinh chi phí.</p></div><button type="button" className="button secondary" onClick={checkMeta} disabled={checkingMeta}>{checkingMeta ? 'Đang kiểm tra...' : 'Kiểm tra Meta'}</button><button type="button" className="button primary" onClick={createMetaDraft} disabled={creatingMetaDraft}>{creatingMetaDraft ? 'Đang tạo...' : 'Tạo bản nháp Meta'}</button></div><div className="status-guide"><b>Các trạng thái an toàn</b><div><StatusBadge label="Bản nháp" /><StatusBadge label="PAUSED trên Meta" /><StatusBadge label="Chưa phân phối" /></div><small>Phiên bản này tạo phần campaign trên Meta. Ad Set, hình ảnh và mẫu quảng cáo sẽ bổ sung sau khi bạn duyệt campaign.</small></div>{campaigns.length === 0 ? <div className="empty"><FileText size={30} /><p>Chưa có bản nháp nào được lưu.</p></div> : <div className="campaign-list">{campaigns.slice(0, 5).map((item) => <div className="campaign-row" key={item.id}><div><b>{item.name}</b><small>{item.location} · {money(item.budget)}/ngày · {item.duration} ngày</small></div><span className="status">{item.status}</span></div>)}</div>}</>;
 }
 function StepHeading({ icon: Icon, title, subtitle }) { return <div className="step-heading"><div className="heading-icon"><Icon size={24} /></div><div><h2>{title}</h2><p>{subtitle}</p></div></div>; }
 function StatusBadge({ label, active = false }) { return <span className={`status-badge${active ? ' active' : ''}`}>{label}</span>; }
