@@ -69,9 +69,9 @@ app.post('/api/meta/draft', async (request, response) => {
       targeting: JSON.stringify({
         age_min: Number(String(campaign.ageRange || '25').match(/\d+/)?.[0] || 18),
         age_max: Number(String(campaign.ageRange || '55').match(/\d+/g)?.[1] || 65),
-        geo_locations: { countries: ['VN'] }
+        geo_locations: { countries: ['VN'] },
+        targeting_automation: { advantage_audience: 0 }
       }),
-      targeting_automation: JSON.stringify({ advantage_audience: 0 }),
       status: 'PAUSED',
       access_token: accessToken
     }, accessToken, `${idempotencyKey}-adset`);
