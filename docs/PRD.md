@@ -21,7 +21,7 @@
 - **Trạng thái chiến dịch:** Phân định rõ ràng các trạng thái: `Bản nháp`, `Mô phỏng`, `Chờ phê duyệt`, `Đã gửi nền tảng`, `Đang chạy thực tế`[cite: 2].
 - **Tích hợp Telegram:** Gửi tin nhắn THẬT qua Telegram Bot API ngay khi người dùng xác nhận lưu chiến dịch thành công (bao gồm tên, mục tiêu, ngân sách, thời gian, trạng thái)[cite: 2].
 ## Cập nhật Phạm vi Nền tảng Quảng cáo & Thông báo
-1. **Nền tảng quảng cáo được chọn:** Ngoài Meta Ads (Facebook/Instagram), hệ thống mở rộng hỗ trợ thêm **Google Ads / YouTube Ads** (hoặc TikTok Ads) làm nền tảng quảng cáo cốt lõi thứ hai, cho phép người dùng linh hoạt lựa chọn loại hình chiến dịch (quảng cáo tìm kiếm, hiển thị hoặc video YouTube)[cite: 2].
+1. **Nền tảng quảng cáo được chọn:** thêm **Google Ads làm nền tảng quảng cáo cốt lõi thứ hai, cho phép người dùng linh hoạt lựa chọn loại hình chiến dịch (quảng cáo tìm kiếm, hiển thị hoặc video YouTube)[cite: 2].
 2. **Yêu cầu bắt buộc về Telegram:** 
    - Telegram **không** được tính là nền tảng quảng cáo thay thế[cite: 2].
    - Telegram bắt buộc là kênh **nhận thông báo THẬT** về hoạt động của hệ thống (khi người dùng hoàn tất xác nhận lưu/gửi chiến dịch, tin nhắn phải xuất hiện lập tức trên Telegram chứa đầy đủ: Tên chiến dịch, nền tảng đã chọn, ngân sách, thời gian và trạng thái)[cite: 2, 3].
