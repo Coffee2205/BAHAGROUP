@@ -1,6 +1,6 @@
 # BAHA Group Ad Builder
 
-MVP giúp chủ cửa hàng thiết lập cấu hình quảng cáo Meta Ads theo 8 bước, bằng tiếng Việt. Meta Ads chỉ được **mô phỏng**; không có API quảng cáo thật, thanh toán hoặc kích hoạt chiến dịch. Telegram là kênh thông báo **thật** sau khi chiến dịch đã được lưu.
+MVP giúp chủ cửa hàng thiết lập cấu hình quảng cáo Google Ads theo 8 bước, bằng tiếng Việt. Google Ads chỉ được **mô phỏng**; không có OAuth, Google Ads API, thanh toán hoặc kích hoạt chiến dịch. Telegram là kênh thông báo **thật** sau khi chiến dịch đã được lưu.
 
 ## Chạy local
 
@@ -23,7 +23,7 @@ Nếu chưa cấu hình Telegram, ứng dụng vẫn lưu chiến dịch vào `l
 2. Ứng dụng lưu chiến dịch cục bộ với trạng thái `Chờ phê duyệt`.
 3. Frontend gọi proxy Express `/api/telegram`.
 4. Backend gọi Telegram Bot API bằng biến môi trường.
-5. Không có lời gọi nào tới Meta Ads thật và không phát sinh chi phí.
+5. Không có lời gọi nào tới Google Ads thật và không phát sinh chi phí.
 
 ## Kiểm thử build
 

@@ -6,7 +6,8 @@
 - **Storage Layer:** Sử dụng trình duyệt `localStorage` để lưu trữ danh sách chiến dịch đã tạo, hỗ trợ xem lại danh sách ở Bước 8.
 - **Integration Layer:** 
   - **Telegram Bot API:** Gửi yêu cầu HTTP `POST` trực tiếp tới `https://api.telegram.org/bot<BOT_TOKEN>/sendMessage` để thông báo thời gian thực về nhóm hoặc tài khoản quản lý.
-  - **Meta/Google Ads Integration:** Ở giai đoạn MVP, tích hợp bộ kết nối dạng mô phỏng (Simulation Adapter) với đầy đủ thông số cấu trúc JSON chuẩn bị sẵn sàng cho việc map sang API chính thức khi được cấp quyền.
+  - **Google Ads Integration:** Ở giai đoạn MVP, chỉ tạo cấu hình và bản xem trước dạng mô phỏng (Simulation Adapter). Không dùng OAuth, không gọi Google Ads API, không kích hoạt chiến dịch và không phát sinh chi phí.
+  - **Thông báo:** Sau khi người dùng lưu cấu hình mô phỏng, backend có thể gửi thông báo thật qua Telegram Bot API.
 
 ## 2. Cấu trúc mã nguồn đề xuất (Project Structure)
 ```text

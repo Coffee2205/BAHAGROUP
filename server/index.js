@@ -28,6 +28,7 @@ app.post('/api/telegram', async (request, response) => {
 
   const message = [
     '🔔 BAHA Group - Chiến dịch mới',
+    `Nền tảng: ${campaign.platform || 'Google Ads'}`,
     `Tên: ${campaign.name}`,
     `Mục tiêu: ${campaign.objective}`,
     `Khu vực: ${campaign.location}`,
@@ -36,7 +37,7 @@ app.post('/api/telegram', async (request, response) => {
     `Tổng dự kiến: ${(Number(campaign.budget) * Number(campaign.duration)).toLocaleString('vi-VN')} VNĐ`,
     'Trạng thái: Chờ phê duyệt',
     '',
-    'Lưu ý: Đây là cấu hình mô phỏng, chưa chạy quảng cáo trả phí thật.'
+    'Lưu ý: Google Ads đang ở chế độ mô phỏng, chưa chạy quảng cáo trả phí thật.'
   ].join('\n');
 
   try {
