@@ -32,6 +32,15 @@ function money(value) { return `${Number(value || 0).toLocaleString('vi-VN')} VN
 function campaignId() {
   return globalThis.crypto?.randomUUID?.() || `campaign-${Date.now()}`;
 }
+async function readApiResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(response.status === 404 || response.status === 502
+      ? 'Không kết nối được backend. Hãy chạy lại npm run dev.'
+      : `Backend trả về phản hồi không hợp lệ (HTTP ${response.status}).`);
+  }
+  return response.json();
+}
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -81,7 +90,7 @@ export default function App() {
     setSending(true); setNotice({ type: 'success', text: 'Đã lưu bản nháp. Đang gửi thông báo Telegram thật...' });
     try {
       const response = await fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaign: saved }) });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.message || 'Gửi Telegram thất bại.');
       localStorage.removeItem(DRAFT_KEY);
       setNotice({ type: 'success', text: 'Đã lưu bản nháp và gửi thông báo Telegram thành công.' });
@@ -93,7 +102,7 @@ export default function App() {
     setCheckingTelegram(true);
     try {
       const response = await fetch('/api/telegram/status');
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.message || 'Không thể kiểm tra Telegram.');
       setNotice({ type: 'success', text: `Telegram đã sẵn sàng (${result.botUsername}).` });
     } catch (error) {
@@ -106,7 +115,7 @@ export default function App() {
     setCheckingMeta(true);
     try {
       const response = await fetch('/api/meta/status');
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.message || 'Meta chưa đủ cấu hình.');
       setNotice({ type: 'success', text: `Meta đã sẵn sàng cho bản nháp (${result.adAccountId}).` });
     } catch (error) {
@@ -126,7 +135,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaign: localDraft })
       });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.message || 'Không thể tạo bản nháp trên Meta.');
       const updated = { ...localDraft, status: 'Bản nháp trên Meta', metaCampaignId: result.metaCampaignId };
       const nextCampaigns = campaigns.map((item) => item.id === localDraft.id ? updated : item);
