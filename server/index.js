@@ -40,12 +40,14 @@ app.post('/api/meta/draft', async (request, response) => {
   const adAccountId = process.env.META_AD_ACCOUNT_ID;
   const pageId = process.env.META_PAGE_ID;
   const accessToken = process.env.META_ACCESS_TOKEN;
+  const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN;
 
-  if (!/^act_\d+$/.test(adAccountId || '') || !/^\d+$/.test(pageId || '') || !accessToken || accessToken.includes('điền_')) {
+  if (!/^act_\d+$/.test(adAccountId || '') || !/^\d+$/.test(pageId || '') ||
+    !accessToken || accessToken.includes('điền_') || !pageAccessToken || pageAccessToken.includes('điền_')) {
     return response.status(503).json({ message: 'Chưa đủ cấu hình Meta để tạo bản nháp.' });
   }
-  if (!campaign?.name || !campaign?.budget || !campaign?.duration || !campaign?.destinationUrl) {
-    return response.status(400).json({ message: 'Bản nháp cần tên, ngân sách, thời gian và website đích.' });
+  if (!campaign?.name || !campaign?.budget || Number(campaign.budget) < 30000 || !campaign?.duration || !campaign?.destinationUrl) {
+    return response.status(400).json({ message: 'Bản nháp cần tên, website đích và ngân sách tối thiểu 30.000 VNĐ/ngày.' });
   }
 
   const idempotencyKey = campaign.id || `${campaign.name}-${campaign.createdAt || Date.now()}`;
@@ -57,11 +59,11 @@ app.post('/api/meta/draft', async (request, response) => {
       special_ad_categories: '[]',
       is_adset_budget_sharing_enabled: 'false',
       access_token: accessToken
-    }, accessToken, `${idempotencyKey}-campaign`);
+    }, `${idempotencyKey}-campaign`);
     const adSetResult = await metaPost(`/${adAccountId}/adsets`, {
       name: `BAHA - ${campaign.name} - Nhóm quảng cáo`,
       campaign_id: campaignResult.id,
-      daily_budget: String(Math.max(10000, Math.round(Number(campaign.budget)))),
+      daily_budget: String(Math.max(30000, Math.round(Number(campaign.budget)))),
       billing_event: 'IMPRESSIONS',
       optimization_goal: campaign.objective === 'Tăng số người ghé thăm trang' ? 'LINK_CLICKS' : 'LEAD_GENERATION',
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
@@ -74,7 +76,7 @@ app.post('/api/meta/draft', async (request, response) => {
       }),
       status: 'PAUSED',
       access_token: accessToken
-    }, accessToken, `${idempotencyKey}-adset`);
+    }, `${idempotencyKey}-adset`);
     const creativeResult = await metaPost(`/${adAccountId}/adcreatives`, {
       name: `BAHA - ${campaign.name} - Nội dung`,
       object_story_spec: JSON.stringify({
@@ -87,15 +89,15 @@ app.post('/api/meta/draft', async (request, response) => {
           call_to_action: { type: 'LEARN_MORE', value: { link: campaign.destinationUrl } }
         }
       }),
-      access_token: accessToken
-    }, accessToken, `${idempotencyKey}-creative`);
+      access_token: pageAccessToken
+    }, `${idempotencyKey}-creative`);
     const adResult = await metaPost(`/${adAccountId}/ads`, {
       name: `BAHA - ${campaign.name} - Quảng cáo`,
       adset_id: adSetResult.id,
       creative: JSON.stringify({ creative_id: creativeResult.id }),
       status: 'PAUSED',
       access_token: accessToken
-    });
+    }, `${idempotencyKey}-ad`);
     return response.json({
       ok: true,
       status: 'PAUSED',
@@ -110,7 +112,7 @@ app.post('/api/meta/draft', async (request, response) => {
   }
 });
 
-async function metaPost(path, fields, accessToken, idempotencyKey) {
+async function metaPost(path, fields, idempotencyKey) {
   const body = new URLSearchParams();
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined) body.set(key, value);
