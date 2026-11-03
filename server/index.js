@@ -63,9 +63,9 @@ app.post('/api/telegram', async (request, response) => {
     `Ngân sách: ${Number(campaign.budget).toLocaleString('vi-VN')} VNĐ/ngày`,
     `Thời gian: ${campaign.duration} ngày`,
     `Tổng dự kiến: ${(Number(campaign.budget) * Number(campaign.duration)).toLocaleString('vi-VN')} VNĐ`,
-    'Trạng thái: Chờ phê duyệt',
+    `Trạng thái: ${campaign.status || 'Bản nháp'}`,
     '',
-    'Lưu ý: Google Ads đang ở chế độ mô phỏng, chưa chạy quảng cáo trả phí thật.'
+    'Lưu ý: Bản nháp Facebook Ads chỉ được lưu trong ứng dụng, chưa gửi lên Meta và chưa chạy quảng cáo trả phí.'
   ].join('\n');
 
   try {
